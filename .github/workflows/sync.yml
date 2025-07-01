@@ -1,36 +1,24 @@
-name: Upstream Sync
+name: Sync Upstream  # 工作流名称，可自定义
 
-permissions:
+on:                   # 定义触发条件
+  schedule:           # 定时任务：每天凌晨3点（UTC）
+    - cron: "0 3 * * *"
+  workflow_dispatch:  # 支持手动触发
+
+permissions:          # 权限设置（这里允许写权限）
   contents: write
 
-on:
-  schedule:
-    - cron: "0 4 * * *" # At 12PM UTC+8
-  workflow_dispatch:
-
 jobs:
-  sync_latest_from_upstream:
-    name: Sync latest commits from upstream repo
+  sync:               # 定义一个名为 sync 的任务
     runs-on: ubuntu-latest
-    if: ${{ github.event.repository.fork }}
-
     steps:
-      # Step 1: run a standard checkout action
-      - name: Checkout target repo
-        uses: actions/checkout@v4
-
-      # Step 2: run the sync action
-      - name: Sync upstream changes
-        id: sync
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
+      - uses: actions/checkout@v4
         with:
-          upstream_sync_repo: LibreSpark/LibreTV
-          upstream_sync_branch: main
-          target_sync_branch: main
-          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # 获取完整历史记录，便于合并
 
-      - name: Sync check
-        if: failure()
+      - name: Add upstream
         run: |
-          echo "[Error] Due to a change in the workflow file of the upstream repository, GitHub has automatically suspended the scheduled automatic update. You need to manually sync your fork."
-          exit 1
+          git remote add upstream https://github.com/LibreSpark/LibreTV.git
+          git fetch upstream
+          git merge upstream/main --allow-unrelated-histories -m "🔃 Sync from upstream"
+          git push origin main
